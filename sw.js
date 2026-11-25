@@ -1,4 +1,4 @@
-const CACHE='stroomprijs-v3';
+const CACHE='stroomprijs-v4';
 const APP_SHELL=['./','./index.html','./manifest.webmanifest'];
 
 self.addEventListener('install',event=>{
