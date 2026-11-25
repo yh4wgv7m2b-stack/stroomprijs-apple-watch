@@ -1,0 +1,9 @@
+{
+  "name": "Stroomprijs",
+  "short_name": "Stroomprijs",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b1117",
+  "theme_color": "#101820",
+  "description": "Dynamische Nederlandse stroomprijzen per kwartier."
+}
