@@ -6,7 +6,6 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    DEVELOPMENT_TEAM: ""
 targets:
   StroomprijsWatch:
     type: application
@@ -14,6 +13,8 @@ targets:
     deploymentTarget: "10.0"
     sources:
       - path: Sources/WatchApp
+    dependencies:
+      - target: StroomprijsWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: nl.stroomprijs.watch
@@ -28,8 +29,6 @@ targets:
     deploymentTarget: "10.0"
     sources:
       - path: Sources/Widget
-    dependencies:
-      - target: StroomprijsWatch
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: nl.stroomprijs.watch.widget
