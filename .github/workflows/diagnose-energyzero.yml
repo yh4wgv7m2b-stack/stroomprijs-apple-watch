@@ -1,0 +1,57 @@
+name: Diagnose EnergyZero API
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/diagnose-energyzero.yml"
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe documented and legacy endpoints, including CORS
+        shell: bash
+        run: |
+          set -u
+          TODAY="$(TZ=Europe/Amsterdam date +%d-%m-%Y)"
+          TOMORROW="$(TZ=Europe/Amsterdam date -d tomorrow +%d-%m-%Y)"
+          ORIGIN="https://yh4wgv7m2b-stack.github.io"
+          probe() {
+            label="$1"; url="$2"
+            headers="$(mktemp)"; body="$(mktemp)"
+            status="$(curl --silent --show-error --location --max-time 25 -H "Origin: $ORIGIN" -H "Accept: application/json" -D "$headers" -o "$body" -w '%{http_code}' "$url" || true)"
+            echo "===== $label ====="
+            echo "URL: $url"
+            echo "HTTP: $status"
+            echo "CORS:"
+            grep -iE '^(access-control-allow-origin|access-control-allow-methods|vary):' "$headers" | tr -d '\r' || true
+            python3 - "$body" <<'PY'
+          import json,sys
+          raw=open(sys.argv[1],encoding="utf-8",errors="replace").read()
+          try:
+              data=json.loads(raw)
+              print("JSON keys:", list(data)[:20] if isinstance(data,dict) else type(data).__name__)
+              if isinstance(data,dict):
+                  for k in ("base_with_vat","all_in_with_vat","base","all_in"):
+                      v=data.get(k)
+                      if isinstance(v,list):
+                          print(f"{k} count:",len(v))
+                          if v: print("sample:",json.dumps(v[0],ensure_ascii=False)[:350])
+              else: print("JSON sample:",json.dumps(data,ensure_ascii=False)[:500])
+          except Exception:
+              print("BODY:",raw[:500].replace("\n"," "))
+          PY
+            rm -f "$headers" "$body"
+          }
+          for path in "/v1/prices" "/public/v1/prices"; do
+            for style in snake camel; do
+              if [ "$style" = snake ]; then
+                params="energy_type=ENERGY_TYPE_ELECTRICITY"
+              else
+                params="energyType=ENERGY_TYPE_ELECTRICITY"
+              fi
+              probe "$path $style TODAY" "https://public.api.energyzero.nl$path?date=$TODAY&interval=INTERVAL_QUARTER&$params"
+              probe "$path $style TOMORROW" "https://public.api.energyzero.nl$path?date=$TOMORROW&interval=INTERVAL_QUARTER&$params"
+            done
+          done
+          echo "===== CORS preflight documented endpoint ====="
+          curl --silent --show-error --location --max-time 25 -X OPTIONS -H "Origin: $ORIGIN" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: accept" -D - -o /dev/null "https://public.api.energyzero.nl/v1/prices" | grep -iE '^(HTTP/|access-control-allow-origin|access-control-allow-methods|access-control-allow-headers|vary:)' | tr -d '\r' || true
