@@ -55,3 +55,48 @@ jobs:
           done
           echo "===== CORS preflight documented endpoint ====="
           curl --silent --show-error --location --max-time 25 -X OPTIONS -H "Origin: $ORIGIN" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: accept" -D - -o /dev/null "https://public.api.energyzero.nl/v1/prices" | grep -iE '^(HTTP/|access-control-allow-origin|access-control-allow-methods|access-control-allow-headers|vary:)' | tr -d '\r' || true
+
+      - name: Check published GitHub Pages and render the real app in Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="https://yh4wgv7m2b-stack.github.io/stroomprijs-apple-watch/"
+          curl --fail --silent --show-error --location --max-time 30 "$SITE?smoke=$GITHUB_RUN_ID" -o /tmp/live-index.html
+          grep -q "public.api.energyzero.nl/v1/prices" /tmp/live-index.html
+          echo "Published page: HTTP 200; documented API endpoint found in live HTML."
+          npm install --no-save playwright
+          npx playwright install chromium
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+            try {
+              const context = await browser.newContext({ timezoneId: 'Europe/Amsterdam', serviceWorkers: 'block' });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('pageerror', e => errors.push(e.message));
+              page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+              await page.goto('https://yh4wgv7m2b-stack.github.io/stroomprijs-apple-watch/?smoke=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 60000 });
+              await page.waitForFunction(() => {
+                const price = document.querySelector('#current')?.textContent?.trim();
+                const chart = document.querySelector('#chart');
+                return price && price !== '—' && chart && chart.children.length > 0;
+              }, null, { timeout: 45000 });
+              const result = await page.evaluate(() => ({
+                current: document.querySelector('#current')?.textContent?.trim(),
+                badge: document.querySelector('#badge')?.textContent?.trim(),
+                minimum: document.querySelector('#min')?.textContent?.trim(),
+                maximum: document.querySelector('#max')?.textContent?.trim(),
+                average: document.querySelector('#avg')?.textContent?.trim(),
+                chartElements: document.querySelector('#chart')?.children.length,
+                cheapestRows: document.querySelectorAll('#cheap .row').length,
+                status: document.querySelector('#status')?.textContent?.trim()
+              }));
+              console.log('LIVE APP DATA:', JSON.stringify(result));
+              if (!result.current || result.current === '—' || !result.chartElements || !result.cheapestRows) throw new Error('Live page did not render price data, chart and cheapest periods.');
+              if (errors.length) console.log('BROWSER ERRORS:', JSON.stringify(errors));
+            } finally {
+              await browser.close();
+            }
+          })().catch(e => { console.error(e); process.exit(1); });
+          NODE
