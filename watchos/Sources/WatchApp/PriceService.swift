@@ -4,7 +4,13 @@ struct QuarterPrice: Identifiable, Decodable {
     let periodUtc: String
     let totalEurPerKwh: Double
     var id: String { periodUtc }
-    var start: Date { ISO8601DateFormatter().date(from: periodUtc) ?? .distantPast }
+    var start: Date {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: periodUtc) { return date }
+        let standard = ISO8601DateFormatter()
+        return standard.date(from: periodUtc) ?? .distantPast
+    }
     var end: Date { start.addingTimeInterval(15 * 60) }
 }
 
