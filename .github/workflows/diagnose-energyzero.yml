@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/diagnose-energyzero.yml"
+      - "sw.js"
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -64,6 +65,13 @@ jobs:
           curl --fail --silent --show-error --location --max-time 30 "$SITE?smoke=$GITHUB_RUN_ID" -o /tmp/live-index.html
           grep -q "public.api.energyzero.nl/v1/prices" /tmp/live-index.html
           echo "Published page: HTTP 200; documented API endpoint found in live HTML."
+          for attempt in $(seq 1 24); do
+            curl --fail --silent --show-error --location --max-time 20 "$SITE/sw.js?smoke=$GITHUB_RUN_ID" -o /tmp/live-sw.js || true
+            if grep -q "stroomprijs-v3" /tmp/live-sw.js 2>/dev/null; then break; fi
+            sleep 5
+          done
+          grep -q "stroomprijs-v3" /tmp/live-sw.js
+          echo "Published service worker: cache v3."
           npm install --no-save playwright
           npx playwright install chromium
           node <<'NODE'
@@ -71,7 +79,7 @@ jobs:
           (async () => {
             const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
             try {
-              const context = await browser.newContext({ timezoneId: 'Europe/Amsterdam', serviceWorkers: 'block' });
+              const context = await browser.newContext({ timezoneId: 'Europe/Amsterdam', serviceWorkers: 'allow' });
               const page = await context.newPage();
               const errors = [];
               page.on('pageerror', e => errors.push(e.message));
