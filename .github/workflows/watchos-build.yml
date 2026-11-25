@@ -1,0 +1,25 @@
+name: Build Apple Watch app
+on:
+  push:
+    paths:
+      - "watchos/**"
+      - ".github/workflows/watchos-build.yml"
+  pull_request:
+    paths:
+      - "watchos/**"
+      - ".github/workflows/watchos-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: watchos
+        run: xcodegen generate
+      - name: Build for watchOS Simulator
+        working-directory: watchos
+        run: xcodebuild -project StroomprijsWatch.xcodeproj -scheme StroomprijsWatch -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO build
