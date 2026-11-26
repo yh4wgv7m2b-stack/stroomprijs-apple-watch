@@ -1,0 +1,35 @@
+name: SpotWave live app verification
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "index.html"
+      - "sw.js"
+      - "manifest.webmanifest"
+      - "scripts/spotwave-live-check.mjs"
+      - ".github/workflows/spotwave-live-check.yml"
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test SpotWave API, local-day boundaries, CORS and GitHub Pages
+        run: node scripts/spotwave-live-check.mjs
+      - name: Test rendered app in Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          node scripts/spotwave-browser-check.mjs
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spotwave-live-verification
+          path: spotwave-verification.json
+          if-no-files-found: ignore
