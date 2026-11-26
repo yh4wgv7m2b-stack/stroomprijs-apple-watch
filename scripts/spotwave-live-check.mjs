@@ -16,6 +16,17 @@ function localDate(date, offsetDays = 0) {
   const shifted = new Date(Date.UTC(+o.year, +o.month - 1, +o.day + offsetDays));
   return shifted.toISOString().slice(0, 10);
 }
+for (const [day, hours, from, to] of [
+  ["2026-03-29", 23, "2026-03-28T23:00:00.000Z", "2026-03-29T21:59:59.000Z"],
+  ["2026-10-25", 25, "2026-10-24T22:00:00.000Z", "2026-10-25T22:59:59.000Z"],
+  ["2026-11-26", 24, "2026-11-25T23:00:00.000Z", "2026-11-26T22:59:59.000Z"]
+]) {
+  const range = dayBounds(day);
+  assert.equal(range.from, from, `${day}: wrong Amsterdam UTC start`);
+  assert.equal(range.to, to, `${day}: wrong Amsterdam UTC end`);
+  assert.equal((Date.parse(range.to) - Date.parse(range.from) + 1000) / 3600000, hours, `${day}: wrong local-day duration`);
+}
+
 function offsetMinutesAt(date) {
   const value = new Intl.DateTimeFormat("en-US", {
     timeZone: TZ, timeZoneName: "shortOffset"
