@@ -4,7 +4,7 @@ const BASE = "https://spotwave.eu/api";
 const SITE = "https://yh4wgv7m2b-stack.github.io/stroomprijs-apple-watch/";
 const TZ = "Europe/Amsterdam";
 const headers = {
-  "Accept": "application/json",
+  "Accept": "application/json",\n  "Origin": "https://yh4wgv7m2b-stack.github.io",
   "User-Agent": "StroomprijsLiveCheck/1.0 (+https://github.com/yh4wgv7m2b-stack/stroomprijs-apple-watch)"
 };
 
